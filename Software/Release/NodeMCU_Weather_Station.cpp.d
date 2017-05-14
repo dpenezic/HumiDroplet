@@ -59,4 +59,4 @@ C:\Users\eboja\AppData\Local\Temp\VMBuilds\NodeMCU_Weather_Station\esp8266_nodem
  C:\Users\eboja\AppData\Local\arduino15\packages\esp8266\hardware\esp8266\2.3.0\libraries\ESP8266WiFi\src/WiFiClient.h \
  C:\Users\eboja\AppData\Local\arduino15\packages\esp8266\hardware\esp8266\2.3.0\libraries\Wire/Wire.h \
  D:\Arduino\libraries\Adafruit_Sensor/Adafruit_Sensor.h \
- D:\Arduino\libraries\Adafruit_BMP280_Library/Adafruit_BMP280.h
+ D:\Arduino\libraries\Adafruit_BMP280_Library-master/Adafruit_BMP280.h

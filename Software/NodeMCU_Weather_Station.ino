@@ -7,7 +7,7 @@
 #include "Adafruit_BMP280.h"
 
 // Firmware Version
-const String Ver = "Firmware v1.2.5";
+const String Ver = "Firmware v1.2.6";
 
 // Sensors
 #define dhtPin D3
@@ -17,10 +17,10 @@ const String Ver = "Firmware v1.2.5";
 DHT dht(dhtPin, DHT22);
 Adafruit_BMP280 BMP; //I2C
 
-// ThingSpeak
-const String APIKey = "YourAPIKey";
+					 // ThingSpeak
+const String APIKey = "Your API Key";
 const char* DataHost = "api.ThingSpeak.com";
-const unsigned long MyChannelNumber = YourChannelNumber;
+const unsigned long MyChannelNumber = /*Your channel number*/;
 const int HTTPPort = 80;
 
 // WiFi
@@ -34,8 +34,8 @@ String LocalIP;
 // Timers [ms]
 unsigned long LastThingSpeakUpdate = 0;
 unsigned long LastCycleTick = 0;
-const unsigned int CycleInterval = 2000;
-const unsigned int ThingSpeakUpdateInterval = 20000;
+const unsigned int CycleInterval = 20000; // Change this value however you like, this is the local refresh interval.
+const unsigned int ThingSpeakUpdateInterval = 20000; // 15000ms minimum, otherwise ThingSpeak won't accept some of the updates.
 
 struct Packet
 {
@@ -57,7 +57,7 @@ Packet AverageArray[AverageAmount];
 uint8_t AverageCounter = 0;
 bool AverageFlag = false;
 
-// Functions
+//Functions
 void MonitorWiFi();
 double Lux(int ADC, int bit, double Vin, double R2);
 double DewPointCalc(double T, double RH);
@@ -69,6 +69,7 @@ String MergeHTML(const Packet & Input);
 void CalcAverage(const struct Packet InputArray[], Packet &Output, const double &Amount, uint8_t &Counter, bool &Flag);
 void UpdateAverageArray(const Packet &Input, struct Packet OutputArray[], const double &Amount, uint8_t &Counter, bool &Flag);
 bool Cycle(unsigned long &Time, const unsigned int &Interval);
+int dBmToPercent(const int RSSI);
 
 unsigned long DebugCounter = 0;
 
@@ -83,9 +84,8 @@ void setup()
 	pinMode(dhtPin, INPUT_PULLUP);
 	pinMode(CheckPin, INPUT_PULLUP);
 
-	wifiMulti.addAP("SSID1", "PSK1");
-	wifiMulti.addAP("SSID2", "PSK2");
-	//You can add up to 5 access points this way
+	wifiMulti.addAP("SSID1", "Passphrase1");
+	wifiMulti.addAP("SSID2", "Passphrase2");
 
 	Serial.println("NodeMCU Weather Station\n" + Ver);
 
@@ -189,14 +189,14 @@ void UpdateReadings(Packet &Output)
 {
 	//DHT22
 	Output.Humidity = dht.readHumidity(); // Relative Humidity [%]
-	//BMP280
+										  //BMP280
 	Output.Temperature = BMP.readTemperature();// dht.readTemperature(); // [*C]
 	Output.Pressure = BMP.readPressure() / 100; // Pa / 100 = [hPa]
 	Output.Luminance = Lux(analogRead(AnalogPin), 10, 3.3, 10); // lumens [lm]
-	//RSSI
+																//RSSI
 	Output.RSSIdBm = WiFi.RSSI(); // [dBm]
-	Output.RSSIPercent = 2 * (Output.RSSIdBm + 100); // [%]
-	//Dew point
+	Output.RSSIPercent = dBmToPercent(Output.RSSIdBm); // [%]
+													   //Dew point
 	Output.DewPoint = DewPointCalc(Output.Temperature, Output.Humidity); // [*C]
 }
 
@@ -255,7 +255,7 @@ void ThingSpeakUpdate(const Packet & Input)
 		DewPoint = String(Input.DewPoint);			// field7
 		Status = Ver + " | " + "Local IP: " + LocalIP;		// status
 
-		// Creating string with data to send
+															// Creating string with data to send
 		String Data = "/update?key=";
 		Data += APIKey;
 		Data += "&field1=" + Temperature;
@@ -377,4 +377,12 @@ bool Cycle(unsigned long &Time, const unsigned int &Interval)
 		return true;
 	}
 	return false;
+}
+
+int dBmToPercent(const int RSSI)
+{
+	if (RSSI < -90)
+		return 0;
+
+	return map(RSSI, -90, -30, 0, 100);
 }
