@@ -17,7 +17,7 @@ const String Ver = "Firmware v1.2.6";
 DHT dht(dhtPin, DHT22);
 Adafruit_BMP280 BMP; //I2C
 
-					 // ThingSpeak
+// ThingSpeak
 const String APIKey = "Your API Key";
 const char* DataHost = "api.ThingSpeak.com";
 const unsigned long MyChannelNumber = /*Your channel number*/;
@@ -34,8 +34,8 @@ String LocalIP;
 // Timers [ms]
 unsigned long LastThingSpeakUpdate = 0;
 unsigned long LastCycleTick = 0;
-const unsigned int CycleInterval = 20000; // Change this value however you like, this is the local refresh interval.
-const unsigned int ThingSpeakUpdateInterval = 20000; // 15000ms minimum, otherwise ThingSpeak won't accept some of the updates.
+const unsigned int CycleInterval = 60000; // Change this value however you like, this is the local refresh interval.
+const unsigned int ThingSpeakUpdateInterval = 60000; // 15000ms minimum, otherwise ThingSpeak won't accept some of the updates.
 
 struct Packet
 {
@@ -57,7 +57,7 @@ Packet AverageArray[AverageAmount];
 uint8_t AverageCounter = 0;
 bool AverageFlag = false;
 
-//Functions
+// Functions
 void MonitorWiFi();
 double Lux(int ADC, int bit, double Vin, double R2);
 double DewPointCalc(double T, double RH);
@@ -255,7 +255,7 @@ void ThingSpeakUpdate(const Packet & Input)
 		DewPoint = String(Input.DewPoint);			// field7
 		Status = Ver + " | " + "Local IP: " + LocalIP;		// status
 
-															// Creating string with data to send
+		// Creating string with data to send
 		String Data = "/update?key=";
 		Data += APIKey;
 		Data += "&field1=" + Temperature;
@@ -351,7 +351,6 @@ void CalcAverage(const struct Packet InputArray[], Packet& Output, const double 
 			Output.Pressure += InputArray[x].Pressure / Amount;
 			Output.Luminance += InputArray[x].Luminance / Amount;
 			Output.DewPoint += InputArray[x].DewPoint / Amount;
-			//Serial.println(String(x) + "Average RSSIdBm: " + String(InputArray[x].RSSIdBm));
 			Output.RSSIdBm += InputArray[x].RSSIdBm / Amount;
 			Output.RSSIPercent += InputArray[x].RSSIPercent / Amount;
 		}
