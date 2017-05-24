@@ -6,36 +6,36 @@
 #include <Adafruit_Sensor.h>
 #include "Adafruit_BMP280.h"
 
-// Firmware Version
+//Firmware version
 const String Ver = "Firmware v1.2.6";
 
-// Sensors
+//Sensors
 #define dhtPin D3
 #define CheckPin D5
 #define BMPAddress 0x76
 #define AnalogPin A0
 DHT dht(dhtPin, DHT22);
-Adafruit_BMP280 BMP; //I2C
+Adafruit_BMP280 BMP; //I2C protocol
 
-// ThingSpeak
-const String APIKey = "Your API Key";
+//ThingSpeak
+const String APIKey = "Your API key";
 const char* DataHost = "api.ThingSpeak.com";
-const unsigned long MyChannelNumber = /*Your channel number*/;
+const unsigned long MyChannelNumber = 00000 /*Your channel number*/;
 const int HTTPPort = 80;
 
-// WiFi
+//WiFi
 ESP8266WiFiMulti wifiMulti;
 boolean ConnectionWasAlive = true;
 boolean LostWiFiConnection = false;
 WiFiServer Server(80);
 WiFiClient client;
-String LocalIP;
+String LocalIP, SSID;
 
-// Timers [ms]
+//Timers [ms]
 unsigned long LastThingSpeakUpdate = 0;
 unsigned long LastCycleTick = 0;
-const unsigned int CycleInterval = 60000; // Change this value however you like, this is the local refresh interval.
-const unsigned int ThingSpeakUpdateInterval = 60000; // 15000ms minimum, otherwise ThingSpeak won't accept some of the updates.
+const unsigned int CycleInterval = 10000; //Change this value however you like, this is the local refresh interval.
+const unsigned int ThingSpeakUpdateInterval = 20000; //15000ms minimum, otherwise ThingSpeak won't accept some of the updates.
 
 struct Packet
 {
@@ -50,14 +50,14 @@ struct Packet
 
 Packet Fresh;
 
-// Average calculation variables
+//Average calculation variables
 const uint8_t AverageAmount = 30;
 Packet Average;
 Packet AverageArray[AverageAmount];
 uint8_t AverageCounter = 0;
 bool AverageFlag = false;
 
-// Functions
+//Functions
 void MonitorWiFi();
 double Lux(int ADC, int bit, double Vin, double R2);
 double DewPointCalc(double T, double RH);
@@ -76,16 +76,17 @@ unsigned long DebugCounter = 0;
 void setup()
 {
 	Serial.begin(115200);
-	for (int x = 0; x < 8; x++) { Serial.print("  \n"); }
+	for (int x = 0; x < 8; x++) { Serial.print("  \n"); } //Skip a few lines to separate actual information from random bootup shit dumped into the serial port.
 
-	//Wire.begin();
 	BMP.begin(BMPAddress);
 	dht.begin();
 	pinMode(dhtPin, INPUT_PULLUP);
 	pinMode(CheckPin, INPUT_PULLUP);
 
 	wifiMulti.addAP("SSID1", "Passphrase1");
-	wifiMulti.addAP("SSID2", "Passphrase2");
+	//wifiMulti.addAP("SSID2", "Passphrase2");
+	//You can add up to 5 access points this way.
+	//Connection will be established to the first available.
 
 	Serial.println("NodeMCU Weather Station\n" + Ver);
 
@@ -104,17 +105,12 @@ void loop()
 	HTTP(MergeHTML(Average));
 	if (Cycle(LastCycleTick, CycleInterval))
 	{
-		Serial.println();
-		Serial.println(DebugCounter);
-		DebugCounter++;
-
 		UpdateReadings(Fresh);
 		UpdateAverageArray(Fresh, AverageArray, AverageAmount, AverageCounter, AverageFlag);
 		CalcAverage(AverageArray, Average, AverageAmount, AverageCounter, AverageFlag);
-		Serial.print("Fresh");
-		DisplayPacket(Fresh);
-		Serial.print("\nAverage");
-		DisplayPacket(Average);
+		
+		//Debugging purposes. Uncomment to see sensor readings on the serial monitor.
+		//Debugging();
 	}
 	ThingSpeakUpdate(Fresh);
 }
@@ -140,8 +136,11 @@ void MonitorWiFi()
 	{
 		ConnectionWasAlive = true;
 		LostWiFiConnection = true;
-		Serial.println("Successfully connected to " + WiFi.SSID());
+
 		LocalIP = String(WiFi.localIP().toString());
+		SSID = WiFi.SSID();
+
+		Serial.println("Successfully connected to " + SSID);
 		Serial.println("Local IP is: " + LocalIP);
 	}
 }
@@ -163,7 +162,7 @@ void HTTP(String HTML)
 
 				if (temp == '\n' && blankLine == true)
 				{
-					//// WEBSITE HTML CODE ////
+					////WEBSITE HTML CODE ////
 					client.println(HTML);
 					//client.println("TEST1234");
 					///////////////////////////
@@ -188,21 +187,21 @@ void HTTP(String HTML)
 void UpdateReadings(Packet &Output)
 {
 	//DHT22
-	Output.Humidity = dht.readHumidity(); // Relative Humidity [%]
-										  //BMP280
-	Output.Temperature = BMP.readTemperature();// dht.readTemperature(); // [*C]
-	Output.Pressure = BMP.readPressure() / 100; // Pa / 100 = [hPa]
-	Output.Luminance = Lux(analogRead(AnalogPin), 10, 3.3, 10); // lumens [lm]
-																//RSSI
-	Output.RSSIdBm = WiFi.RSSI(); // [dBm]
-	Output.RSSIPercent = dBmToPercent(Output.RSSIdBm); // [%]
-													   //Dew point
-	Output.DewPoint = DewPointCalc(Output.Temperature, Output.Humidity); // [*C]
+	Output.Humidity = dht.readHumidity(); //Relative Humidity [%]
+	//BMP280
+	Output.Temperature = BMP.readTemperature(); //[*C]
+	Output.Pressure = BMP.readPressure() / 100; //Pa / 100 = [hPa]
+	//Photoresistor
+	Output.Luminance = Lux(analogRead(AnalogPin), 10, 3.3, 10); //lumens [lm]
+	//WiFi signal
+	Output.RSSIdBm = WiFi.RSSI(); //RSSI [dBm]
+	Output.RSSIPercent = dBmToPercent(Output.RSSIdBm); //[%]
+	Output.DewPoint = DewPointCalc(Output.Temperature, Output.Humidity); //Dew point [*C]
 }
 
 void DisplayPacket(const Packet & Input)
 {
-	Serial.print("\r\n");
+	Serial.print("\n");
 
 	Serial.print("Temperature: ");
 	Serial.print(Input.Temperature);
@@ -244,18 +243,18 @@ void ThingSpeakUpdate(const Packet & Input)
 		Serial.println("\r\nCheckPin State: " + String(digitalRead(CheckPin)));
 		//LastThingSpeakUpdate = millis();
 
-		// Converting readings to strings
+		//Converting readings to strings
 		String Temperature, Humidity, Pressure, Luminance, RSSIdBm, RSSIPercent, Status, DewPoint;
-		Temperature = String(Input.Temperature);	// field1
-		Humidity = String(Input.Humidity);			// field2
-		Pressure = String(Input.Pressure);			// field3
-		Luminance = String(Input.Luminance);		// field4
-		RSSIdBm = String(Input.RSSIdBm);			// field5
-		RSSIPercent = String(Input.RSSIPercent);	// field6
-		DewPoint = String(Input.DewPoint);			// field7
-		Status = Ver + " | " + "Local IP: " + LocalIP;		// status
+		Temperature = String(Input.Temperature);	//field1
+		Humidity = String(Input.Humidity);			//field2
+		Pressure = String(Input.Pressure);			//field3
+		Luminance = String(Input.Luminance);		//field4
+		RSSIdBm = String(Input.RSSIdBm);			//field5
+		RSSIPercent = String(Input.RSSIPercent);	//field6
+		DewPoint = String(Input.DewPoint);			//field7
+		Status = Ver + " | " + "Local IP: " + LocalIP + " | " + "SSID: " + SSID;		//status
 
-		// Creating string with data to send
+		//Creating string with data to send
 		String Data = "/update?key=";
 		Data += APIKey;
 		Data += "&field1=" + Temperature;
@@ -270,7 +269,7 @@ void ThingSpeakUpdate(const Packet & Input)
 		Serial.println("Data string: " + Data);
 		Serial.print("\r\nConnecting to ThingSpeak...");
 
-		// Connecting and sending data to ThingSpeak
+		//Connecting and sending data to ThingSpeak
 		if (client.connect(DataHost, HTTPPort))
 		{
 			client.print("POST /update HTTP/1.1\n");
@@ -284,11 +283,11 @@ void ThingSpeakUpdate(const Packet & Input)
 			client.print(Data);
 
 			delay(200);
-			// ThingSpeak update sent successfully.
+			//ThingSpeak update sent successfully.
 			Serial.println("ThingSpeak data update sent successfully.");
 		}
 		else {
-			// Failed to connect to ThingSpeak
+			//Failed to connect to ThingSpeak
 			Serial.println("Unable to connect to ThingSpeak.");
 		}
 
@@ -310,7 +309,7 @@ double Lux(int ADC, int bit, double Vin, double R2)
 	double Vout = ADC * Vin / pow(2, bit);
 	double Output = (500 * Vout) / (R2 * (Vin - Vout));
 
-	//Serial.println(Vout); // Debugging purposes
+	//Serial.println(Vout); //Debugging purposes
 
 	return Output;
 }
@@ -384,4 +383,15 @@ int dBmToPercent(const int RSSI)
 		return 0;
 
 	return map(RSSI, -90, -30, 0, 100);
+}
+
+void Debugging()
+{
+	Serial.println();
+	Serial.println(DebugCounter);
+	Serial.print("Fresh");
+	DisplayPacket(Fresh);
+	Serial.print("\nAverage");
+	DisplayPacket(Average);
+	DebugCounter++;
 }
